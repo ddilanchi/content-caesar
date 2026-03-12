@@ -31,7 +31,7 @@ class Character(Base):
     voice_id = Column(String)  # TTS voice identifier
     reference_images = Column(JSON)  # Paths to reference images for consistency
     lora_model = Column(String)  # Path to trained LoRA if applicable
-    metadata = Column(JSON)  # Extra attributes (age, ethnicity, personality, etc.)
+    char_meta = Column(JSON)  # Extra attributes (age, ethnicity, personality, etc.)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     workspace = relationship("Workspace", back_populates="characters")

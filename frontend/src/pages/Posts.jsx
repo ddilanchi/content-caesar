@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Send, Clock, FileDown, Trash2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Send, Clock, FileDown, Trash2, X, Loader } from 'lucide-react'
 import api from '../utils/api'
 
 const statusColors = {
@@ -7,21 +7,55 @@ const statusColors = {
   scheduled: 'var(--info)',
   posted: 'var(--success)',
   failed: 'var(--danger)',
+  generating: '#f59e0b',
+}
+
+function mediaUrl(filePath) {
+  if (!filePath) return null
+  const filename = filePath.replace(/\\/g, '/').split('/').pop()
+  return `http://localhost:8000/api/media/${filename}`
+}
+
+function Spinner() {
+  return (
+    <div style={{
+      width: 80, height: 80, flexShrink: 0, borderRadius: 6,
+      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Loader size={24} color="#f59e0b" style={{ animation: 'spin 1s linear infinite' }} />
+    </div>
+  )
 }
 
 export default function Posts() {
   const [posts, setPosts] = useState([])
   const [filter, setFilter] = useState('')
+  const [lightbox, setLightbox] = useState(null)
   const workspaceId = localStorage.getItem('workspace_id')
+  const pollRef = useRef(null)
 
   const load = () => {
     if (!workspaceId) return
     const params = { workspace_id: workspaceId }
     if (filter) params.status = filter
-    api.get('/posts/', { params }).then(r => setPosts(r.data)).catch(() => {})
+    api.get('/posts/', { params }).then(r => {
+      setPosts(r.data)
+      // Auto-poll while any post is generating
+      const hasGenerating = r.data.some(p => p.status === 'generating')
+      if (hasGenerating && !pollRef.current) {
+        pollRef.current = setInterval(load, 3000)
+      } else if (!hasGenerating && pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }).catch(() => {})
   }
 
-  useEffect(load, [workspaceId, filter])
+  useEffect(() => {
+    load()
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [workspaceId, filter])
 
   const deletePost = async (id) => {
     await api.delete(`/posts/${id}`)
@@ -40,70 +74,136 @@ export default function Posts() {
 
   if (!workspaceId) return <p style={{ color: 'var(--text-secondary)' }}>Select a workspace first.</p>
 
+  const generating = posts.filter(p => p.status === 'generating')
+
   return (
     <div>
+      {/* Lightbox */}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <button onClick={() => setLightbox(null)} style={{
+            position: 'absolute', top: 16, right: 16, background: 'none',
+            border: 'none', color: '#fff', cursor: 'pointer',
+          }}><X size={28} /></button>
+          {lightbox.type === 'image'
+            ? <img src={lightbox.url} alt="preview" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }} />
+            : <video src={lightbox.url} controls autoPlay style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }} />
+          }
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h2 style={{ fontSize: 24 }}>Posts</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          {['', 'draft', 'scheduled', 'posted'].map(s => (
+          {['', 'draft', 'generating', 'scheduled', 'posted', 'failed'].map(s => (
             <button key={s} className={filter === s ? 'btn-primary' : 'btn-secondary'}
               onClick={() => setFilter(s)} style={{ fontSize: 12, padding: '6px 12px' }}>
               {s || 'All'}
+              {s === 'generating' && generating.length > 0 && (
+                <span style={{
+                  marginLeft: 5, background: '#f59e0b', color: '#000',
+                  borderRadius: 10, fontSize: 10, padding: '1px 5px', fontWeight: 700,
+                }}>{generating.length}</span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Generating banner */}
+      {generating.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
+          padding: '10px 16px', borderRadius: 8,
+          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+        }}>
+          <Loader size={16} color="#f59e0b" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: '#f59e0b' }}>
+            {generating.length} post{generating.length > 1 ? 's' : ''} generating... checking every 3s
+          </span>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {posts.map(post => (
-          <div key={post.id} className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
-                    color: statusColors[post.status] || 'var(--text-secondary)',
-                    background: `${statusColors[post.status] || 'var(--text-secondary)'}20`,
-                    padding: '2px 8px', borderRadius: 4,
-                  }}>
-                    {post.status}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{post.content_type}</span>
-                  {post.scheduled_at && (
-                    <span style={{ fontSize: 12, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Clock size={12} /> {new Date(post.scheduled_at).toLocaleString()}
+        {posts.map(post => {
+          const url = mediaUrl(post.file_path)
+          const isVideo = post.content_type === 'video' || post.content_type === 'slideshow'
+          const isGenerating = post.status === 'generating'
+          return (
+            <div key={post.id} className="card" style={isGenerating ? { borderColor: 'rgba(245,158,11,0.4)' } : {}}>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                {/* Thumbnail or spinner */}
+                {isGenerating ? (
+                  <Spinner />
+                ) : url ? (
+                  <div onClick={() => setLightbox({ url, type: isVideo ? 'video' : 'image' })}
+                    style={{ flexShrink: 0, cursor: 'pointer', borderRadius: 6, overflow: 'hidden', width: 80, height: 80 }}>
+                    {isVideo
+                      ? <video src={url} style={{ width: 80, height: 80, objectFit: 'cover' }} />
+                      : <img src={url} alt="thumb" style={{ width: 80, height: 80, objectFit: 'cover' }} />
+                    }
+                  </div>
+                ) : null}
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
+                      color: statusColors[post.status] || 'var(--text-secondary)',
+                      background: `${statusColors[post.status] || 'var(--text-secondary)'}22`,
+                      padding: '2px 8px', borderRadius: 4,
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      {isGenerating && <Loader size={10} style={{ animation: 'spin 1s linear infinite' }} />}
+                      {post.status}
                     </span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{post.content_type}</span>
+                    {post.scheduled_at && (
+                      <span style={{ fontSize: 12, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={12} /> {new Date(post.scheduled_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 14 }}>{post.title || post.prompt?.substring(0, 100) || 'Untitled'}</p>
+                  {post.caption && (
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{post.caption}</p>
+                  )}
+                  {isGenerating && (
+                    <p style={{ fontSize: 12, color: '#f59e0b', marginTop: 4 }}>
+                      Safe to leave this page — generation runs in the background.
+                    </p>
                   )}
                 </div>
-                <p style={{ fontSize: 14 }}>{post.title || post.prompt?.substring(0, 80) || 'Untitled'}</p>
-                {post.caption && (
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{post.caption}</p>
-                )}
-                {post.target_platforms && (
-                  <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                    {post.target_platforms.map(p => (
-                      <span key={p} style={{
-                        fontSize: 11, padding: '2px 6px', borderRadius: 4,
-                        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                      }}>{p}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {post.status === 'draft' && post.file_path && (
-                  <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
-                    onClick={() => publishPost(post.id, 'tiktok')}>
-                    <Send size={12} /> Post
-                  </button>
-                )}
-                <button className="btn-danger" onClick={() => deletePost(post.id)} style={{ padding: '6px 10px' }}>
-                  <Trash2 size={14} />
-                </button>
+
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  {url && (
+                    <a href={url} download style={{ textDecoration: 'none' }}>
+                      <button className="btn-secondary" style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <FileDown size={12} />
+                      </button>
+                    </a>
+                  )}
+                  {post.status === 'draft' && url && (
+                    <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+                      onClick={() => publishPost(post.id, 'tiktok')}>
+                      <Send size={12} /> Post
+                    </button>
+                  )}
+                  {!isGenerating && (
+                    <button className="btn-danger" onClick={() => deletePost(post.id)} style={{ padding: '6px 10px' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         {posts.length === 0 && (
           <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 40 }}>
             No posts yet. Generate some content first.

@@ -1,15 +1,15 @@
 # Content Caesar - TODO
 
 ## API Keys Needed
-- [ ] Gemini API key (for SOTA checker)
-- [ ] Video gen API key — Kling ($0.029/sec, best value) or Veo 3 ($0.15-0.40/sec, best quality + native audio)
-- [ ] Flux API key (image gen) — via bfl.ai, Replicate, or Fal.ai
+- [x] Gemini API key — in .env (SOTA checker + Nano Banana 2 image gen)
+- [x] Fal.ai API key — in .env as FAL_API_KEY (Kling 3.0 video gen, $0.168/s standard)
 - [ ] Fish Audio or ElevenLabs key (voice/TTS)
 - [ ] Sync.so key (lip sync) — or Hedra for free tier
 - [ ] Ayrshare key ($30-200/mo) — unified social posting API for TikTok/YouTube/IG/Pinterest
 
 ## Decision Points
-- [ ] Video gen provider: Kling (volume/budget) vs Veo 3 (quality/native audio)?
+- [x] Image gen: Nano Banana 2 (Google, gemini-3.1-flash-image-preview) — same Gemini key
+- [x] Video gen: Kling 3.0 via Fal.ai — best quality/cost for UGC
 - [ ] TTS provider: Fish Audio S1 (cheaper, #1 ranked) vs ElevenLabs (emotional depth)?
 - [ ] Social posting: Ayrshare (unified, fast to integrate) vs direct APIs (more control, 6-10 weeks)?
 
@@ -26,9 +26,9 @@
 - [x] Settings page (workspaces, API keys, social accounts)
 - [x] Scheduler service (APScheduler, checks every minute)
 - [x] Local file export fallback for social posting
-- [ ] Wire Gemini API key into SOTA checker
-- [ ] Wire up image generation (Flux API)
-- [ ] Wire up video generation (Kling or Veo 3 API)
+- [x] Wire Gemini API key into SOTA checker (auto-seeded from .env on startup)
+- [x] Wire up image generation (Nano Banana 2 / gemini-3.1-flash-image-preview)
+- [x] Wire up video generation (Kling 3.0 via Fal.ai — needs FAL_API_KEY in .env)
 - [ ] Wire up TTS (Fish Audio or ElevenLabs API)
 
 ## Phase 2 — Character Consistency

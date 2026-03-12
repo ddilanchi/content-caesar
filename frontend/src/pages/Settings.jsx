@@ -27,6 +27,7 @@ export default function Settings() {
     await api.post('/workspaces/', newWs)
     setNewWs({ name: '', description: '' })
     load()
+    window.dispatchEvent(new Event('workspaces-updated'))
   }
 
   const addTool = async (e) => {
@@ -46,6 +47,7 @@ export default function Settings() {
   const deleteWorkspace = async (id) => {
     await api.delete(`/workspaces/${id}`)
     load()
+    window.dispatchEvent(new Event('workspaces-updated'))
   }
 
   return (

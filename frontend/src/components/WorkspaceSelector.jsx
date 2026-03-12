@@ -7,8 +7,24 @@ export default function WorkspaceSelector() {
     localStorage.getItem('workspace_id') || ''
   )
 
+  const fetchWorkspaces = () => {
+    api.get('/workspaces/').then(r => {
+      setWorkspaces(r.data)
+      // Auto-select first workspace if nothing is selected yet
+      const stored = localStorage.getItem('workspace_id')
+      if (!stored && r.data.length > 0) {
+        const id = String(r.data[0].id)
+        setSelected(id)
+        localStorage.setItem('workspace_id', id)
+        window.dispatchEvent(new Event('workspace-changed'))
+      }
+    }).catch(() => {})
+  }
+
   useEffect(() => {
-    api.get('/workspaces/').then(r => setWorkspaces(r.data)).catch(() => {})
+    fetchWorkspaces()
+    window.addEventListener('workspaces-updated', fetchWorkspaces)
+    return () => window.removeEventListener('workspaces-updated', fetchWorkspaces)
   }, [])
 
   const handleChange = (e) => {

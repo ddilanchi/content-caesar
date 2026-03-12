@@ -16,7 +16,7 @@ class CharacterCreate(BaseModel):
     appearance: Optional[str] = None
     style: Optional[str] = None
     voice_id: Optional[str] = None
-    metadata: Optional[dict] = None
+    char_meta: Optional[dict] = None
 
 
 class CharacterOut(BaseModel):
@@ -28,7 +28,7 @@ class CharacterOut(BaseModel):
     style: Optional[str]
     voice_id: Optional[str]
     reference_images: Optional[list]
-    metadata: Optional[dict]
+    char_meta: Optional[dict]
 
     class Config:
         from_attributes = True
