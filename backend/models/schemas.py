@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .database import Base
@@ -76,6 +76,8 @@ class Post(Base):
     posted_at = Column(DateTime, nullable=True)
     target_platforms = Column(JSON)  # List of platform names to post to
     generation_config = Column(JSON)  # Full config used for generation
+    cost_usd = Column(Float, nullable=True)  # Generation cost in USD
+    cost_breakdown = Column(JSON, nullable=True)  # Per-tool breakdown
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     workspace = relationship("Workspace", back_populates="posts")

@@ -8,6 +8,7 @@ import os
 import json
 import httpx
 from datetime import datetime, timezone
+from services.pricing import cost_image, cost_slideshow, cost_video
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "data", "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -36,12 +37,25 @@ async def generate_content(request, character=None, tools: dict | None = None) -
     if content_type == "image":
         result = await _generate_image(full_prompt, request, tools)
         output_filename += ".png"
+        if result.get("status") == "generated":
+            c = cost_image()
+            result["cost_usd"] = c["total"]
+            result["cost_breakdown"] = c["breakdown"]
     elif content_type == "slideshow":
         result = await _generate_slideshow(full_prompt, request, tools)
         output_filename += ".mp4"
+        if result.get("status") == "generated":
+            c = cost_slideshow(num_images=5)
+            result["cost_usd"] = c["total"]
+            result["cost_breakdown"] = c["breakdown"]
     elif content_type == "video":
         result = await _generate_video(full_prompt, request, character, tools)
         output_filename += ".mp4"
+        if result.get("status") == "generated":
+            duration = getattr(request, "duration", 5) or 5
+            c = cost_video(duration_sec=duration)
+            result["cost_usd"] = c["total"]
+            result["cost_breakdown"] = c["breakdown"]
     else:
         raise ValueError(f"Unknown content type: {content_type}")
 

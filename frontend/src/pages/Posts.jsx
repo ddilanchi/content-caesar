@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Clock, FileDown, Trash2, X, Loader } from 'lucide-react'
+import { Send, Clock, FileDown, Trash2, X, Loader, DollarSign } from 'lucide-react'
 import api from '../utils/api'
+
+function fmtCost(n) {
+  if (n == null) return null
+  return n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`
+}
 
 const statusColors = {
   draft: 'var(--text-secondary)',
@@ -163,6 +168,15 @@ export default function Posts() {
                       {post.status}
                     </span>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{post.content_type}</span>
+                    {fmtCost(post.cost_usd) && (
+                      <span style={{
+                        fontSize: 11, display: 'flex', alignItems: 'center', gap: 2,
+                        color: 'var(--accent)', background: 'rgba(201,162,39,0.12)',
+                        padding: '2px 7px', borderRadius: 4, fontWeight: 600,
+                      }}>
+                        <DollarSign size={9} />{fmtCost(post.cost_usd)}
+                      </span>
+                    )}
                     {post.scheduled_at && (
                       <span style={{ fontSize: 12, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={12} /> {new Date(post.scheduled_at).toLocaleString()}
@@ -208,6 +222,22 @@ export default function Posts() {
           <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 40 }}>
             No posts yet. Generate some content first.
           </p>
+        )}
+
+        {/* Cost footer */}
+        {posts.some(p => p.cost_usd != null) && (
+          <div style={{
+            marginTop: 8, padding: '12px 16px', borderRadius: 8,
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              {posts.filter(p => p.cost_usd != null).length} priced posts shown
+            </span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>
+              Total: {fmtCost(posts.reduce((sum, p) => sum + (p.cost_usd || 0), 0))}
+            </span>
+          </div>
         )}
       </div>
     </div>

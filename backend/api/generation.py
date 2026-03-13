@@ -67,6 +67,8 @@ async def generate(req: GenerationRequest, db: AsyncSession = Depends(get_db)):
         else:
             post.status = "draft" if gen_status == "generated" else "failed"
             post.file_path = output.get("file_path")
+            post.cost_usd = output.get("cost_usd")
+            post.cost_breakdown = output.get("cost_breakdown")
     except Exception as e:
         post.status = "failed"
         post.generation_config = {**(post.generation_config or {}), "error": str(e)}
