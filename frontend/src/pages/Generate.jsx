@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Wand2, ChevronDown, ChevronUp, Zap, Pin, Download } from 'lucide-react'
+import { Wand2, ChevronDown, ChevronUp, Zap, Pin, Download, Sparkles, FileText, Copy, Check, RefreshCw } from 'lucide-react'
 import api from '../utils/api'
 
 const TEMPLATES = [
@@ -91,6 +91,11 @@ export default function Generate() {
   const [result, setResult] = useState(null)
   const [showTemplates, setShowTemplates] = useState(true)
   const [pinterest, setPinterest] = useState({ url: '', num: 20, importing: false, result: null })
+  const [scriptTool, setScriptTool] = useState({
+    productName: '', productDescription: '', targetAudience: '', platform: 'tiktok',
+    format: 'ugc_ad', duration: 30,
+    hooks: null, script: null, loading: false, copied: null,
+  })
   const workspaceId = localStorage.getItem('workspace_id')
 
   const [form, setForm] = useState({
@@ -111,6 +116,44 @@ export default function Generate() {
     api.get('/characters/', { params: { workspace_id: workspaceId } })
       .then(r => setCharacters(r.data)).catch(() => {})
   }, [workspaceId])
+
+  const generateHooks = async () => {
+    setScriptTool(s => ({ ...s, loading: 'hooks', hooks: null }))
+    try {
+      const { data } = await api.post('/scripts/hooks', {
+        product_name: scriptTool.productName,
+        product_description: scriptTool.productDescription,
+        target_audience: scriptTool.targetAudience || undefined,
+        platform: scriptTool.platform,
+      })
+      setScriptTool(s => ({ ...s, loading: false, hooks: data.hooks }))
+    } catch (e) {
+      setScriptTool(s => ({ ...s, loading: false, hooks: ['Error: ' + (e.response?.data?.detail || e.message)] }))
+    }
+  }
+
+  const generateScript = async () => {
+    setScriptTool(s => ({ ...s, loading: 'script', script: null }))
+    try {
+      const { data } = await api.post('/scripts/script', {
+        product_name: scriptTool.productName,
+        product_description: scriptTool.productDescription,
+        target_audience: scriptTool.targetAudience || undefined,
+        platform: scriptTool.platform,
+        format: scriptTool.format,
+        duration_sec: scriptTool.duration,
+      })
+      setScriptTool(s => ({ ...s, loading: false, script: data }))
+    } catch (e) {
+      setScriptTool(s => ({ ...s, loading: false, script: { error: e.response?.data?.detail || e.message } }))
+    }
+  }
+
+  const copyText = (text, key) => {
+    navigator.clipboard.writeText(text)
+    setScriptTool(s => ({ ...s, copied: key }))
+    setTimeout(() => setScriptTool(s => ({ ...s, copied: null })), 1500)
+  }
 
   const applyTemplate = (t) => {
     setForm(f => ({ ...f, content_type: t.content_type, style: t.style, aspect_ratio: t.aspect_ratio, duration: t.duration, prompt: t.prompt }))
@@ -219,6 +262,160 @@ export default function Generate() {
               : <span style={{ color: 'var(--success)' }}>Imported {pinterest.result.count} images — check Posts page.</span>
             }
           </div>
+        )}
+      </div>
+
+      {/* Script Tools */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <Sparkles size={16} color="var(--accent)" />
+          <h3 style={{ fontSize: 16 }}>Hook & Script Generator</h3>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>AI-written hooks and full video scripts</span>
+        </div>
+
+        <div className="grid-2" style={{ gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Product Name</label>
+            <input value={scriptTool.productName}
+              onChange={e => setScriptTool(s => ({ ...s, productName: e.target.value }))}
+              placeholder="e.g. Pareto Protein Bar" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Target Audience (optional)</label>
+            <input value={scriptTool.targetAudience}
+              onChange={e => setScriptTool(s => ({ ...s, targetAudience: e.target.value }))}
+              placeholder="e.g. gym bros aged 18-30" />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Product Description</label>
+          <textarea rows={2} value={scriptTool.productDescription}
+            onChange={e => setScriptTool(s => ({ ...s, productDescription: e.target.value }))}
+            placeholder="What does it do, what problem does it solve, what makes it different?" />
+        </div>
+
+        <div className="grid-2" style={{ gap: 12, marginBottom: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Script Format</label>
+            <select value={scriptTool.format} onChange={e => setScriptTool(s => ({ ...s, format: e.target.value }))}>
+              <option value="ugc_ad">UGC Ad (Hook → Problem → Solution → CTA)</option>
+              <option value="testimonial">Testimonial (Story → Discovery → Results)</option>
+              <option value="tutorial">Tutorial (Hook → Steps → Result → CTA)</option>
+              <option value="problem_solution">Problem/Solution</option>
+            </select>
+          </div>
+          <div className="grid-2" style={{ gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Platform</label>
+              <select value={scriptTool.platform} onChange={e => setScriptTool(s => ({ ...s, platform: e.target.value }))}>
+                <option value="tiktok">TikTok</option>
+                <option value="instagram">Instagram</option>
+                <option value="youtube">YouTube Shorts</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Duration (sec)</label>
+              <input type="number" value={scriptTool.duration} min={10} max={120}
+                onChange={e => setScriptTool(s => ({ ...s, duration: parseInt(e.target.value) }))} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn-secondary"
+            disabled={!scriptTool.productName || !scriptTool.productDescription || scriptTool.loading === 'hooks'}
+            onClick={generateHooks}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <Zap size={14} />
+            {scriptTool.loading === 'hooks' ? 'Generating...' : 'Generate Hooks'}
+          </button>
+          <button type="button" className="btn-primary"
+            disabled={!scriptTool.productName || !scriptTool.productDescription || scriptTool.loading === 'script'}
+            onClick={generateScript}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <FileText size={14} />
+            {scriptTool.loading === 'script' ? 'Writing Script...' : 'Write Full Script'}
+          </button>
+        </div>
+
+        {/* Hooks output */}
+        {scriptTool.hooks && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={12} /> Hook options — click to copy or use as prompt
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {scriptTool.hooks.map((hook, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', borderRadius: 6, gap: 10,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                }} onClick={() => setForm(f => ({ ...f, prompt: hook }))}>
+                  <span style={{ fontSize: 13, flex: 1 }}>{hook}</span>
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button type="button" className="btn-secondary"
+                      style={{ padding: '3px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}
+                      onClick={e => { e.stopPropagation(); copyText(hook, `hook-${i}`) }}>
+                      {scriptTool.copied === `hook-${i}` ? <Check size={10} /> : <Copy size={10} />}
+                    </button>
+                    <button type="button" className="btn-primary"
+                      style={{ padding: '3px 8px', fontSize: 11 }}
+                      onClick={e => { e.stopPropagation(); setForm(f => ({ ...f, prompt: hook })) }}>
+                      Use
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="btn-secondary" onClick={generateHooks}
+              style={{ marginTop: 8, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <RefreshCw size={12} /> Regenerate
+            </button>
+          </div>
+        )}
+
+        {/* Script output */}
+        {scriptTool.script && !scriptTool.script.error && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <FileText size={12} /> Full script — ~{scriptTool.script.estimated_seconds}s
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" className="btn-secondary"
+                  style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                  onClick={() => copyText(scriptTool.script.full_script, 'script')}>
+                  {scriptTool.copied === 'script' ? <Check size={10} /> : <Copy size={10} />}
+                  {scriptTool.copied === 'script' ? 'Copied!' : 'Copy All'}
+                </button>
+                <button type="button" className="btn-primary"
+                  style={{ fontSize: 11 }}
+                  onClick={() => setForm(f => ({ ...f, prompt: scriptTool.script.full_script }))}>
+                  Use as Prompt
+                </button>
+              </div>
+            </div>
+            {scriptTool.script.sections?.map((section, i) => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                  color: 'var(--accent)', marginBottom: 4, letterSpacing: 1,
+                }}>{section.label}</div>
+                {section.lines?.map((line, j) => (
+                  <div key={j} style={{
+                    fontSize: 13, lineHeight: 1.6, padding: '2px 0',
+                    color: line.startsWith('[VISUAL') ? 'var(--text-secondary)' : 'var(--text-primary)',
+                    fontStyle: line.startsWith('[VISUAL') ? 'italic' : 'normal',
+                  }}>{line}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        {scriptTool.script?.error && (
+          <div style={{ marginTop: 12, color: 'var(--danger)', fontSize: 13 }}>{scriptTool.script.error}</div>
         )}
       </div>
 

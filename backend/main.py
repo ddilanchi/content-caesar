@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import select
 from models.database import init_db, async_session
 from models.schemas import ToolConfig
-from api import workspaces, characters, posts, tools, generation, social, pinterest
+from api import workspaces, characters, posts, tools, generation, social, pinterest, scripts
 import config
 import os
 
@@ -51,6 +51,7 @@ app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
 app.include_router(generation.router, prefix="/api/generate", tags=["generation"])
 app.include_router(social.router, prefix="/api/social", tags=["social"])
 app.include_router(pinterest.router, prefix="/api/pinterest", tags=["pinterest"])
+app.include_router(scripts.router, prefix="/api/scripts", tags=["scripts"])
 
 # Serve generated media files
 _outputs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "outputs"))
